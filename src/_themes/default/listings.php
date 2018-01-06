@@ -32,9 +32,8 @@ if(!$user->LoggedIn())
             echo ' <div class="catdropdown list-group-item">';
             echo '<input type="checkbox" id="checkbox-dropdown-toggle'.$cato['id'].'">';
             echo ' <label for="checkbox-dropdown-toggle'.$cato['id'].'">' . $cato['cato_name'];
-            echo '<i class="fa fa-arrow-down" aria-hidden="true"></i>
-';
-            echo '<span class="fa fa-arrow-down"></span>';
+            echo '<span class="glyphicon glyphicon-chevron-right arrow-right"></span>';
+            echo '<span class="glyphicon glyphicon-chevron-down arrow-down"></span>';
             echo '   </label>';
             echo '  <ul class="dropdown-ul">';
             foreach($array2 as $sub)

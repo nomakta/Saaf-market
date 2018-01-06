@@ -11,7 +11,7 @@ class Site{
 
     public function getCategories($type, $id)
     {
-    	$list = array();
+    	$array = array();
     	if($type == 1) {
     		$a = $this->db->prepare("SELECT * FROM categories WHERE enabled='1'");
     		$a->Execute();
@@ -21,8 +21,8 @@ class Site{
             	$b->execute();
             	$AmountOfProducts = $b->rowCount();
 
-    			$array = array('id' => $cato['id'] ,'cato_name' => $cato['category'], 'products' => $AmountOfProducts);
-    			$list[] = $array;
+    			$list = array('id' => $cato['id'] ,'cato_name' => $cato['category'], 'products' => $AmountOfProducts);
+    			$array[] = $list;
     		}
     	}elseif($type == 2) {
     	 	$a = $this->db->prepare("SELECT * FROM subcategories WHERE categoryid='".$id."' AND enabled='1'");
@@ -33,11 +33,11 @@ class Site{
                 $b->execute();
     	 		$products = $b->Rowcount();
 
-    	 		$array = array('id' => $sub['id'], 'sub_name' => $sub['sub_name'], 'products' => $products);
-    	 		$list[] = $array;
+    	 		$list = array('id' => $sub['id'], 'sub_name' => $sub['sub_name'], 'products' => $products);
+    	 		$array[] = $list;
     	 	}
     	}
-    	return $list;
+    	return $array;
     }
 
 	function get_paging_info($tot_rows,$pp,$curr_page)
@@ -53,7 +53,7 @@ class Site{
 
     public function ProductPagiation($currentpage, $type, $input, $perpage, $nofe)
     {
-    	$pagiation = array();
+    	$array = array();
         $filter1;
 
     	if($nofe == "on") { $filter1 = "AND type=1"; }
@@ -90,14 +90,14 @@ class Site{
 
        if($paging_info['curr_page'] == 0 ) {
        	$page = array('page' => '1', 'url' => '&page=1' . $link, 'current_page' => 'true');
-       	$pagiation[] = $page;
+       	$array[] = $page;
        }
        if($paging_info['curr_page'] == $i) :
 		 $page = array('page' => $i, 'url' => '&page='. $i . $link, 'current_page' => 'true');
-       	 $pagiation[] = $page;
+       	 $array[] = $page;
        else :
 		 $page = array('page' => $i, 'url' => '&page='. $i . $link, 'current_page' => 'false');
-       	 $pagiation[] = $page;
+       	 $array[] = $page;
          endif;
 	   endfor;
 
@@ -105,16 +105,38 @@ class Site{
        	  $page1 = array('page' => '...', 'url' => '#', 'current_page' => 'false');
        	  $page2 = array('page' => $paging_info['pages'], 'url' => '&page='. $paging_info['pages'] . $link, 'current_page' => 'false');
 
-          $pagiation[] = $page1;
-          $pagiation[] = $page2;
+          $array[] = $page1;
+          $array[] = $page2;
         endif;
     	}
-    	return $pagiation;
+    	return $array;
+    }
+
+    public function GetFeaturedListings($limit)
+    {
+        // standard limit should be 4 :^)
+        $array = array();
+        $a = $this->db->prepare('SELECT * FROM products WHERE featured="1" LIMIT '.$limit.'');
+        $a->execute();
+
+        if($a->rowCount() > 0) {
+            foreach($a as $product ) {
+                $rating = $this->user->vendorRating($this->user->getUsername($product['user_id']));
+                foreach($rating as $vendor_rep) {
+                    $product_array = array('product_id' => $product['id'], 'product_code' => $product['code'], 'product_name' => $product['name'], 'product_desc' => $product['short_description'], 'product_image' => $product['image'], 'product_ships_from' => $product['ShipsTo'], 'product_ships_to' => $product['ShipsFrom'], 'product_price' => $this->user->formatBTC($product['price']), 'product_vendor' => $this->user->getUsername($product['user_id']), 'product_type' => $product['type'], 'rating' => $vendor_rep['Message']);
+                    $array[] = $product_array;
+                }
+            }        
+        }else{
+            $error = array('Message_type' => 'Error', 'Message' => 'No featured products found');
+            $array[] = $error;
+        }
+        return $array;
     }
 
 	public function ViewAllProducts($page, $SearchBool, $CatoID, $searchtext, $perpage, $filter, $nofe)
     {
-    	$product_array = array();
+    	$array = array();
     	$pagenumber = $page-1;
     	$CatoType = split(" ", $CatoID);
     	$filter1;
@@ -147,14 +169,14 @@ class Site{
                 $rating = $this->user->vendorRating($this->user->getUsername($product['user_id']));
                 foreach($rating as $vendor_rep) {
                  $product = array('product_id' => $product['id'], 'product_code' => $product['code'], 'product_name' => $product['name'], 'product_desc' => $product['short_description'], 'product_image' => $product['image'], 'product_ships_from' => $product['ShipsTo'], 'product_ships_to' => $product['ShipsFrom'], 'product_price' => $this->user->formatBTC($product['price']), 'product_vendor' => $this->user->getUsername($product['user_id']), 'product_type' => $product['type'], 'rating' => $vendor_rep['Message']);
-                $product_array[] = $product;
+                $array[] = $product;
                 }
     		}
     	}else{
     		$error = array('Message_type' => 'Error', 'Message' => 'No products found');
-    		$product_array[] = $error;
+    		$array[] = $error;
     	}
-    	return $product_array;
+    	return $array;
     }
 
     public function ViewProduct($product_code)

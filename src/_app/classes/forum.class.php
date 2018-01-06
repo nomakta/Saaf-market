@@ -6,7 +6,28 @@ class Forum{
     function __construct($DB_con, User $user)
     {
       $this->db = $DB_con;
-	  $this->user = $user;
+	    $this->user = $user;
+    }
+
+    public function AllowedToPost($catoID, $username)
+    {
+    	$a = $this->db->prepare("SELECT * FROM forum_categories WHERE allowed_to_post='1' AND id='".$catoID."'");
+    	$a->Execute();
+    	if($a->Rowcount() > 0) { return true; } else{ if($this->user->isAdmin($username)) { return true; }else{ return false; } }
+    }
+
+    public function isLocked($topicID) 
+    {
+    	$a = $this->db->prepare('SELECT * FROM forum_topics WHERE topic_locked="0" AND id="'.$topicID.'"');
+    	$a->Execute();
+    	if($a->Rowcount() > 0) { return true; }else{ return false; }
+    }
+
+    public function TopicExists($TopicID) 
+    {
+    	$a = $this->db->prepare("SELECT * FROM forum_topics WHERE id='".$topicID."'");
+    	$a->execute();
+    	if($a->Rowcount() > 0) { return true; }else{ return false; }
     }
 
     public function GetForumCategories() 
@@ -19,7 +40,6 @@ class Forum{
 			  $topics = $this->db->prepare("SELECT * FROM forum_topics WHERE cato_id='".$cato['id']."'");
               $topics->Execute();
               if($topics->Rowcount() == 0) { $TopicAmount = "No topics posted"; }else{ $TopicAmount = $topics->Rowcount(); }
-
        	      $replies = $this->db->prepare("SELECT * FROM forum_replies WHERE cato_id='".$cato['id']."'");
           	  $replies->Execute();
        	      if($replies->Rowcount() == 0 ) { $ReplyAmount = "No replies posted"; }else{ $ReplyAmount = $replies->Rowcount(); }
@@ -106,8 +126,76 @@ class Forum{
    				$array[] = $reply_array;	
    			}
    		}else{
-			$error = array('Message_type' => 'Error', 'Message' => 'No replies found');
+			$error = array('Message_type' => 'Error', 'Message' => 'No replies found.');
             $array[] = $error;
    		}
     }
+
+    public function CreateTopic($TopicTitle, $TopicText, $author, $CatoID)
+    {
+		$date = date('d/m/Y');
+    	$array = array();
+    	if($this->AllowedToPost($CatoID, $author)) {
+    		if(!empty($TopicTitle)) {
+    			if(!empty($TopicText)) {		
+    				$a = $this->db->prepare('INSERT INTO forum_topics(cato_id, topic_name, topic_text, topic_posted, posted_by, topic_locked, topic_pinned) VALUES (:cato_id, :topic_name, :topic_text, :topic_posted, :posted_by, :topic_locked, :topic_pinned)');
+    				$a->Execute(array('cato_id' => $CatoID, ':topic_name' => htmlspecialchars($TopicTitle), ':topic_text' => htmlspecialchars($TopicText), ':topic_posted' => $date, ':posted_by'=>$author, ':topic_locked' => '0', ':topic_pinned' => '0'));
+    				if($a->Rowcount() > 0) {
+						  $Success = array('Message_type' => 'Success', 'Message' => 'Topic posted.');
+              $array[] = $Success;
+    				}else{
+						  $error = array('Message_type' => 'Error', 'Message' => 'Please fill in the topic text.');
+            	$array[] = $error;		
+    				}
+    			}else{
+					  $error = array('Message_type' => 'Error', 'Message' => 'Please fill in the topic text.');
+            $array[] = $error;
+    			}
+    		}else{
+				  $error = array('Message_type' => 'Error', 'Message' => 'Please fill in a topic title.');
+				  $array[] = $error;
+    		}
+    	}else{
+			  $error = array('Message_type' => 'Error', 'Message' => 'You are not allowed to post in this category.');
+        $array[] = $error;
+    	}
+    	return $array;
+    }
+
+    public function CreateReply($TopicID, $ReplyText, $author)
+    {
+    	$array = array();
+		      b$date = date('d/m/Y');
+    	if(!$this->isLocked($topicID)) {
+    		if(!empty($ReplyText)) { 
+    			if($this->TopicExists($topicID)) {
+    				$catoID = $this->db->prepare('SELECT * FROM forum_topics WHERE id="'.$topicID.'"');
+    				$catoID->Execute();
+    				foreach($catoID as $eh) { $realcatoid = $eh['cato_id']; }
+
+    				$a = $this->db->prepare('INSERT INTO forum_replies(topic_id, cato_id, user_id, reply_text, reply_date) VALUES (:topic_id, :cato_id, :user_id, :reply_text, :reply_date');
+    				$a->Execute(array(':topic_id' => $TopicID, ':cato_id' => $realcatoid, ':user_id' => $user->GetUID($author), ':reply_text' => htmlspecialchars($ReplyText), ':reply_date'=>$date));
+    				
+    				if($a->Rowcount() > 0) {
+						  $Success = array('Message_type' => 'Success', 'Message' => 'Reply posted.');
+            	$array[] = $Success;
+    				}else{
+						  $error = array('Message_type' => 'Error', 'Message' => 'Something went wrong, please try again.');
+              $array[] = $error;	
+    				}
+    			}else{
+					   $error = array('Message_type' => 'Error', 'Message' => 'Topic does not seem to exist.');
+             $array[] = $error;
+    			}
+    		}else{
+				  $error = array('Message_type' => 'Error', 'Message' => 'Please fill in your reply.');
+          $array[] = $error;
+    		}
+    	}else{
+			  $error = array('Message_type' => 'Error', 'Message' => 'You cannot post in a locked topic.');
+        $array[] = $error;
+    	}
+    	return $array;
+    }
+
 }
